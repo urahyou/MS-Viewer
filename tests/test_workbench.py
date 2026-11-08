@@ -187,3 +187,37 @@ def test_existing_legend_and_time_title_repaint_on_theme_change(qtbot, tiny_ms):
 def test_workbench_tests_never_use_native_user_preferences(qtbot, tiny_ms, tmp_path):
     w = opened(qtbot, tiny_ms)
     assert str(tmp_path) in w.settings.fileName()
+
+
+def test_selecting_locate_row_updates_details_focus_and_cursor_without_reread(qtbot, tiny_ms):
+    w = opened(qtbot, tiny_ms)
+    w.selection_modes.setCurrentIndex(1)
+    for i in range(w.query_controls.baselines.count()):
+        w.query_controls.baselines.item(i).setCheckState(Qt.CheckState.Unchecked)
+    w.request_query()
+    qtbot.waitUntil(lambda: w._job is None and w._selection_current)
+    w.diagnostic.hide_flags.setChecked(False)
+    records = w.diagnostic.records_for_indices(np.arange(len(w.diagnostic._x)))
+    indices = [
+        next(
+            i
+            for i, r in enumerate(records)
+            if r["row"] == row and r["channel"] == channel and r["correlation"] == corr
+        )
+        for row, channel, corr in ((0, 0, "XX"), (3, 2, "YY"))
+    ]
+    w.diagnostic.locate_indices(indices)
+    selected = next(i for i, r in enumerate(w.inspector.records) if r["row"] == 3)
+    token = w._token
+    w.inspector.table.setCurrentCell(selected, 1)
+    assert "Row 3 · Channel 2 · YY" in w.inspector.details.toPlainText()
+    assert w.block.row_ids[0] == 3
+    assert w.corr_combo.currentText() == "YY"
+    assert w.linked_cursor.position == (0, 2)
+    assert w.antenna_map.baseline == (1, 0)
+    assert len(w.inspector.records) == 2
+    assert len(w.diagnostic.selected_indices) == 2
+    w.set_language("zh")
+    assert w.inspector.table.currentRow() == selected
+    assert "Row 3 · Channel 2 · YY" in w.inspector.details.toPlainText()
+    assert w._token == token and not w.timer.isActive() and w._job is None

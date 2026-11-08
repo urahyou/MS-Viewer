@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 from astropy.time import Time
-from PyQt6.QtCore import QSignalBlocker, Qt
+from PyQt6.QtCore import QSignalBlocker, Qt, pyqtSignal
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -35,6 +35,8 @@ from .workbench_text import tr
 
 
 class PointInspector(QWidget):
+    activated = pyqtSignal(dict)
+
     KEYS = (
         "dataset",
         "spw",
@@ -68,6 +70,9 @@ class PointInspector(QWidget):
         self.note.setWordWrap(True)
         self.table = QTableWidget(0, 8)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.currentCellChanged.connect(self._current_changed)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.details = QPlainTextEdit()
         self.details.setReadOnly(True)
@@ -94,12 +99,13 @@ class PointInspector(QWidget):
         )
         self.copy_button.setText(tr("Copy located rows", language))
         self.clear_button.setText(tr("Clear details", language))
-        self.set_records(self.records, self.total, self.scales)
+        self.set_records(self.records, self.total, self.scales, self.table.currentRow())
 
     def clear(self):
         self.set_records([], 0)
 
-    def set_records(self, records, total, scales=()):
+    def set_records(self, records, total, scales=(), selected_row=0):
+        blocker = QSignalBlocker(self.table)
         self.records = list(records)
         self.total = total
         self.scales = scales
@@ -151,8 +157,20 @@ class PointInspector(QWidget):
                 self.table.item(i, j).setToolTip(
                     f"Scan {r['scan']} · {stamp} · FLAG={r['flag']} · x={r['x']} · y={r['y']}"
                 )
+        selected_row = min(max(0, selected_row), len(records) - 1)
         if records:
-            r = records[0]
+            self.table.setCurrentCell(selected_row, 0)
+        del blocker
+        self._show_record(selected_row, emit=False)
+        self.copy_button.setEnabled(bool(records))
+        self.clear_button.setEnabled(bool(records))
+
+    def _current_changed(self, row, *_):
+        self._show_record(row, emit=True)
+
+    def _show_record(self, row, *, emit):
+        if 0 <= row < len(self.records):
+            r = self.records[row]
             scale = r.get("time_scale", "")
             stamp = (
                 f"{Time(r['time'] / 86400, format='mjd', scale=scale).isot} {scale.upper()}"
@@ -167,10 +185,10 @@ class PointInspector(QWidget):
                 f"{r['value']} {r.get('unit', '')} · FLAG={r['flag']}\n"
                 f"{r['x_axis']}={r['x']} · {r['y_axis']}={r['y']}"
             )
+            if emit:
+                self.activated.emit(r)
         else:
             self.details.clear()
-        self.copy_button.setEnabled(bool(records))
-        self.clear_button.setEnabled(bool(records))
 
     def copy(self):
         buffer = io.StringIO()
@@ -267,6 +285,7 @@ class WorkbenchMixin:
         self.selection_modes.currentChanged.connect(self._change_mode)
         self.focus_combo.currentIndexChanged.connect(self._display_group)
         self.diagnostic.located.connect(self._on_located)
+        self.inspector.activated.connect(self._focus_record)
         self.setAcceptDrops(True)
         try:
             recent = json.loads(self.settings.value("recent_paths", "[]"))
@@ -427,7 +446,11 @@ class WorkbenchMixin:
         ]
         self.inspector.set_records(records, total, tuple(b.time_scale for b in self._blocks))
         self.inspector_dock.show()
-        record = records[0]
+        self._focus_record(records[0])
+
+    def _focus_record(self, record):
+        if self._opening or not self._selection_current:
+            return
         g = record["group"]
         if not 0 <= g < len(self._blocks):
             return

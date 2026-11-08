@@ -196,7 +196,9 @@ def test_translations_preserve_science_selection_and_user_ranges(qtbot):
     assert not captured
     assert "预览" in widget.status_label.text()
     axis(widget.x_combo, "FREQ")
-    np.testing.assert_allclose(widget.plot.getViewBox().viewRange(), ranges)
+    np.testing.assert_allclose(widget.plot.getViewBox().viewRange()[1], ranges[1])
+    assert widget.plot.getViewBox().viewRange()[0][0] <= 110
+    assert widget.plot.getViewBox().viewRange()[0][1] >= 120
 
 
 def test_global_sampling_and_record_limits_are_explicit(qtbot):
@@ -306,3 +308,28 @@ def test_translation_reuses_active_legend_items_while_layout_events_are_queued(q
     assert widget.legend.items[0][1] is label
     qtbot.wait(1)
     assert "Group 1" in label.item.toPlainText()
+
+
+def test_axis_change_fits_new_coordinates_without_resetting_other_axis(qtbot):
+    widget = view(qtbot)
+    widget.set_blocks((block(),))
+    widget.plot.setRange(xRange=(1, 2), yRange=(2, 3), padding=0)
+    axis(widget.x_combo, "FREQ")
+    (xmin, xmax), (ymin, ymax) = widget.plot.viewRange()
+    assert xmin <= 110 and xmax >= 120
+    np.testing.assert_allclose((ymin, ymax), (2, 3))
+    x_range = (xmin, xmax)
+    axis(widget.y_combo, "PHASE")
+    np.testing.assert_allclose(widget.plot.viewRange()[0], x_range)
+    assert widget.plot.viewRange()[1][1] >= 90
+
+
+def test_frequency_axis_never_prefixes_an_already_scaled_mhz_unit(qtbot):
+    widget = view(qtbot)
+    widget.set_blocks((block(frequencies=np.array([1350e6, 1500e6])),))
+    axis(widget.x_combo, "FREQ")
+    widget.reset_view()
+    qtbot.wait(1)
+    assert widget.plot.getAxis("bottom").labelUnits == "MHz"
+    assert not widget.plot.getAxis("bottom").autoSIPrefix
+    assert "kMHz" not in widget.plot.getAxis("bottom").label.toPlainText()

@@ -149,8 +149,8 @@ class DiagnosticView(QWidget):
         layout.addLayout(actions)
         layout.addWidget(self.plot, 1)
         layout.addWidget(self.status_label)
-        self.x_combo.currentIndexChanged.connect(self._rebuild)
-        self.y_combo.currentIndexChanged.connect(self._rebuild)
+        self.x_combo.currentIndexChanged.connect(lambda: self._axis_changed("x"))
+        self.y_combo.currentIndexChanged.connect(lambda: self._axis_changed("y"))
         self.hide_flags.toggled.connect(self._rebuild)
         self.region_button.toggled.connect(self._toggle_region)
         self.locate_button.clicked.connect(self.locate_region)
@@ -308,6 +308,8 @@ class DiagnosticView(QWidget):
                     stamp = Time(self._time_origin / 86400, format="mjd", scale=scale).isot
                     origin_title = f"{stamp} {scale.upper()}"
             self.plot.setLabel(position, label, units=unit)
+            # Frequencies are already converted from Hz to MHz above.
+            self.plot.getAxis(position).enableAutoSIPrefix(identifier != "FREQ")
         self.plot.setTitle(origin_title)
 
     @staticmethod
@@ -383,8 +385,17 @@ class DiagnosticView(QWidget):
         self.clear_selection_button.setEnabled(bool(self._selection_total) or self.roi.isVisible())
         self.reset_button.setEnabled(populated)
 
+    def _axis_changed(self, axis):
+        """A new coordinate needs a new range; preserve the other axis's zoom."""
+        self._rebuild()
+        values = self._x if axis == "x" else self._y
+        if len(values):
+            self.plot.getViewBox().setRange(
+                **{f"{axis}Range": (float(values.min()), float(values.max()))}, padding=0.08
+            )
+
     def reset_view(self):
-        """Explicitly fit displayed finite samples; other controls preserve manual ranges."""
+        """Fit both coordinates; translations and flag toggles preserve manual ranges."""
         if len(self._x):
             self.plot.getViewBox().setRange(
                 xRange=(float(self._x.min()), float(self._x.max())),
