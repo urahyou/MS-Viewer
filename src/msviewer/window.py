@@ -255,6 +255,8 @@ class MainWindow(QMainWindow):
         )
         self.cursor_label.setObjectName("muted")
         self.cursor_label.setWordWrap(True)
+        # Reserve two lines so changing hover text never resizes the plot viewports.
+        self.cursor_label.setFixedHeight(2 * self.cursor_label.fontMetrics().lineSpacing() + 8)
         layout.addWidget(self.cursor_label)
         self.status_label = QLabel("Ready · MS data are opened read-only")
         self.status_label.setTextFormat(Qt.TextFormat.PlainText)
@@ -782,6 +784,7 @@ class MainWindow(QMainWindow):
             self.cursor_label.setText(
                 self._text("Linked cursor: hover over any plot; mean curves stay unchanged.")
             )
+            self.cursor_label.setToolTip("")
             return
         row, channel = self._cursor_position
         parts = []
@@ -835,4 +838,6 @@ class MainWindow(QMainWindow):
                     unit=unit,
                 )
             )
-        self.cursor_label.setText("  |  ".join(parts))
+        label = "  |  ".join(parts)
+        self.cursor_label.setText(label)
+        self.cursor_label.setToolTip(label)

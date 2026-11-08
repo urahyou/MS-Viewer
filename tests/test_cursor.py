@@ -15,6 +15,7 @@ def window(qtbot, tiny_ms):
     window.show()
     window.open_ms(tiny_ms)
     qtbot.waitUntil(lambda: window.plot_data is not None)
+    qtbot.wait(40)  # Initial status/axis layout is independent of the hover being tested.
     return window
 
 
@@ -182,3 +183,15 @@ def test_axes_and_colourbar_do_not_count_as_data_regions(window):
     hover(window, window.waterfall_plot, 1.2, 1.2)
     window.graphics.scene().sigMouseMoved.emit(window.colorbar.vb.sceneBoundingRect().center())
     assert window._cursor_position is None
+
+
+def test_readout_does_not_resize_plots_when_text_wraps(window, qtbot):
+    window.resize(980, 800)
+    qtbot.wait(40)  # Let the explicit window resize settle before testing mouse movement.
+    size = window.graphics.size()
+    bounds = [p.viewRange() for p in (window.spectrum_plot, window.time_plot)]
+    hover(window, window.waterfall_plot, 1.2, 1.2)
+    qtbot.wait(40)
+    assert window.graphics.size() == size
+    for plot, before in zip((window.spectrum_plot, window.time_plot), bounds):
+        np.testing.assert_allclose(plot.viewRange(), before)
