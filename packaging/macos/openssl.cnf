@@ -1,0 +1,4 @@
+# The viewer uses OpenSSL's built-in defaults; no build-machine paths or modules.
+openssl_conf = openssl_init
+
+[openssl_init]
