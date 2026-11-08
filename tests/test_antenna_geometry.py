@@ -85,8 +85,8 @@ def test_unavailable_position_metadata_keeps_visibilities_readable(tiny_ms, chan
 
 @pytest.mark.parametrize("malformed", ["malformed", 7])
 def test_malformed_optional_position_measure_does_not_break_ms_inspection(tiny_ms, malformed):
-    from msviewer.reader import inspect_ms, read_visibility
     from msviewer.model import Selection
+    from msviewer.reader import inspect_ms, read_visibility
 
     with table(str(tiny_ms / "ANTENNA"), readonly=False, ack=False) as t:
         t.removecolkeyword("POSITION", "MEASINFO")
