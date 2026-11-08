@@ -40,4 +40,4 @@
 **Files:** Version/build metadata, packaging/macos/build.sh and docs/macos-install.md if releasing a new DMG.
 - [x] Build a new app/DMG after tests pass; preserve previously installed app before replacement.
 - [x] Verify signature and native linked cursor UI. Update installed application; push source/update release under previous authorization, without replacing historical v0.1.0 artifacts.
-- [ ] Record evidence and give user direct usage instructions and accurate installer limitations.
+- [x] Record evidence and give user direct usage instructions and accurate installer limitations.
