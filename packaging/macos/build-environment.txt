@@ -1,0 +1,28 @@
+altgraph==0.17.5
+astropy==8.0.2
+astropy-iers-data==0.2026.11.2.0.34.55
+colorama==0.4.6
+iniconfig==2.3.1
+macholib==1.16.4
+numpy @ file:///Users/runner/miniforge3/conda-bld/bld/rattler-build_numpy_1791675320/work/dist/numpy-2.5.4-cp312-cp312-macosx_11_0_arm64.whl#sha256=16672791dd212522d2a274e82ac0b89da5746f7b1eea8e2e4d8cf11be404e365
+packaging @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_packaging_1785888127/work
+pluggy==1.7.0
+pyerfa==2.0.1.5
+Pygments==2.21.0
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.9
+PyQt6==6.12.0
+PyQt6-Qt6==6.12.0
+PyQt6_sip==13.13.0
+pyqtgraph==0.14.0
+pytest==9.2.0
+pytest-qt==4.5.0
+python-casacore @ file:///Users/runner/miniforge3/conda-bld/python-casacore_1793299067491/work
+PyYAML==6.0.3
+# Editable Git install with no remote (radio-msviewer==0.1.0)
+-e .
+ruff==0.17.4
+setuptools==84.2.1
+six @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_six_1753199211/work
+typing_extensions==4.16.0
+wheel==0.48.0

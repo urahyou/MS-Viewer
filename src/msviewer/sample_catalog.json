@@ -1,0 +1,20 @@
+[
+  {
+    "name": "mssel_test_small.ms",
+    "archive": "mssel_test_small.ms.tgz",
+    "url": "https://raw.githubusercontent.com/casacore/casacore/a1399b6b99907bd14021920a089403a93c10aba1/ms/MSSel/test/mssel_test_small.ms.tgz",
+    "source": "https://github.com/casacore/casacore/blob/a1399b6b99907bd14021920a089403a93c10aba1/ms/MSSel/test/mssel_test_small.ms.tgz",
+    "sha256": "97a64db3f7d78cddad9309b512d31a063a309de55c173cbc731895558626ec63",
+    "size": 608580,
+    "provenance": "Public casacore regression-test fixture. Telescope origin comes from OBSERVATION; historical preprocessing is not specified by this repository. Not claimed to be raw telescope data."
+  },
+  {
+    "name": "mssel_test_small_multifield_spw.ms",
+    "archive": "mssel_test_small_multifield_spw.ms.tgz",
+    "url": "https://raw.githubusercontent.com/casacore/casacore/a1399b6b99907bd14021920a089403a93c10aba1/ms/MSSel/test/mssel_test_small_multifield_spw.ms.tgz",
+    "source": "https://github.com/casacore/casacore/blob/a1399b6b99907bd14021920a089403a93c10aba1/ms/MSSel/test/mssel_test_small_multifield_spw.ms.tgz",
+    "sha256": "b487f5353948bcc76ca27ac3bdfee2a81a0667233eeb1ade911b9805488a0214",
+    "size": 4818441,
+    "provenance": "Public casacore regression-test fixture. Telescope origin comes from OBSERVATION; historical preprocessing is not specified by this repository. Not claimed to be raw telescope data."
+  }
+]

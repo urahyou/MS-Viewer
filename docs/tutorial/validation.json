@@ -1,0 +1,15 @@
+{
+  "output": "/Users/urahyou/Desktop/msviewer/output/pdf/MS查看器与MeasurementSet_天文学家视角入门.pdf",
+  "pages": 21,
+  "bytes": 1694805,
+  "visual_review": "All 21 pages reviewed; revised pages 4, 11, 13, 16 rerendered and rechecked",
+  "font_check": "Chinese TrueType fonts embedded; no missing-glyph warnings in final figure generation",
+  "data_checks": [
+    "ALMA DDID2: 23 rows x 1 channel x 4 correlations",
+    "Selected Field0: 7 rows, all flagged; Field1: 16 rows, 1 flagged",
+    "First valid sample: +96.192 s; frequency 85290.305 MHz",
+    "Simulated Field0: 48 rows x 96 channels; channel32 =1366.842105 MHz"
+  ],
+  "references": "6 primary reference links embedded in PDF",
+  "scope": "Read-only tutorial authoring; application source unchanged"
+}

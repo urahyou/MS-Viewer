@@ -1,0 +1,11 @@
+name: radio-msviewer
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.12
+  - python-casacore>=3.6
+  - numpy>=1.26
+  - pip
+  - pip:
+      - -e .[dev]
