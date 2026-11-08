@@ -16,6 +16,14 @@ class VisibilityBlock:
     total_rows: int
     time_scale: str = "utc"
     unit: str = ""
+    channel_ids: np.ndarray | None = None
+    uvw: np.ndarray | None = None  # Per row, three Cartesian coordinates in metres.
+    field_ids: np.ndarray | None = None
+    scan_numbers: np.ndarray | None = None
+    antenna1: np.ndarray | None = None
+    antenna2: np.ndarray | None = None
+    ddid: int | None = None
+    correlation_labels: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -44,6 +52,17 @@ class DataDescription:
 
 
 @dataclass(frozen=True)
+class ScanSummary:
+    scan: int
+    field: int
+    start: float | None
+    end: float | None
+    rows: int
+    ddids: tuple[int, ...]
+    intents: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class Metadata:
     path: Path
     rows: int
@@ -57,6 +76,9 @@ class Metadata:
     telescope: str
     antenna_positions: np.ndarray | None = None  # ITRF Cartesian metres, original IDs
     antenna_position_error: str = ""
+    scans: tuple[ScanSummary, ...] = ()
+    field_intents: tuple[tuple[str, ...], ...] = ()
+    history: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -71,6 +71,7 @@ def isolated_language_settings(tmp_path):
         QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path / "settings")
     )
     settings = QSettings("RadioAstronomy", "MSViewer")
+    settings.clear()
     settings.setValue("language", "en")
     settings.sync()
     yield

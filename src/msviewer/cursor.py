@@ -76,6 +76,17 @@ class LinkedCursor(QObject):
         else:
             self.clear()
             return
+        self.select(row, channel)
+
+    def select(self, row, channel):
+        """Focus known preview indices, including from the read-only Locate inspector."""
+        if self.data is None:
+            return
+        if (row is not None and not 0 <= row < self.data.image.shape[0]) or (
+            channel is not None and not 0 <= channel < self.data.image.shape[1]
+        ):
+            self.clear()
+            return
         if self.position == (row, channel):
             return
         self.position = (row, channel)

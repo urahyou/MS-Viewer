@@ -6,7 +6,7 @@ import numpy as np
 from astropy import units as u
 from casacore.tables import table
 
-from .model import DataDescription, Metadata, Selection, VisibilityBlock
+from .model import DataDescription, Metadata, ScanSummary, Selection, VisibilityBlock
 
 DATA_COLUMNS = ("DATA", "CORRECTED_DATA", "MODEL_DATA", "FLOAT_DATA")
 CORRELATIONS = (
@@ -34,6 +34,8 @@ CORRELATIONS = (
 )
 META_CHUNK = 65536
 PREVIEW_BYTES = 64 * 1024 * 1024
+HISTORY_LIMIT = 128
+HISTORY_MESSAGE_LIMIT = 2048
 
 
 def _open(path):
@@ -118,9 +120,48 @@ def _antenna_positions(ant):
     return positions, ""
 
 
+def _state_intents(path):
+    """Optional STATE records describe intent; field names never imply intent."""
+    try:
+        with _open(f"{path}::STATE") as state:
+            if "OBS_MODE" not in state.colnames():
+                return {}
+            return {
+                row: tuple(
+                    sorted(
+                        {
+                            s.strip()
+                            for s in str(state.getcell("OBS_MODE", row)).split(",")
+                            if s.strip()
+                        }
+                    )
+                )
+                for row in range(state.nrows())
+            }
+    except (RuntimeError, ValueError, IndexError, KeyError):
+        return {}
+
+
+def _history(path):
+    try:
+        with _open(f"{path}::HISTORY") as history:
+            if "MESSAGE" not in history.colnames():
+                return ()
+            # Retain the most recent bounded tail, with bounded individual strings.
+            start = max(0, history.nrows() - HISTORY_LIMIT)
+            return tuple(
+                str(history.getcell("MESSAGE", row))[:HISTORY_MESSAGE_LIMIT]
+                for row in range(start, history.nrows())
+            )
+    except (RuntimeError, ValueError, IndexError, KeyError):
+        return ()
+
+
 def inspect_ms(path) -> Metadata:
     path = _path(path)
     try:
+        state_intents = _state_intents(path)
+        scans = {}
         with _open(path) as ms:
             scale = _time_scale(ms)
             columns = tuple(c for c in DATA_COLUMNS if c in ms.colnames())
@@ -132,6 +173,20 @@ def inspect_ms(path) -> Metadata:
                 values = np.column_stack([ms.getcol(c, start, count) for c in grouping])
                 partitions.update(tuple(map(int, row)) for row in np.unique(values, axis=0))
                 times = ms.getcol("TIME", start, count)
+                states = (
+                    ms.getcol("STATE_ID", start, count)
+                    if "STATE_ID" in ms.colnames()
+                    else np.full(count, -1)
+                )
+                for values_row, time, state in zip(values, times, states):
+                    ddid, field_id, scan = map(int, values_row[:3])
+                    summary = scans.setdefault((scan, field_id), [np.inf, -np.inf, 0, set(), set()])
+                    if np.isfinite(time):
+                        summary[0] = min(summary[0], float(time))
+                        summary[1] = max(summary[1], float(time))
+                    summary[2] += 1
+                    summary[3].add(ddid)
+                    summary[4].update(state_intents.get(int(state), ()))
                 finite = times[np.isfinite(times)]
                 if len(finite):
                     time_min = min(time_min, float(finite.min()))
@@ -144,6 +199,31 @@ def inspect_ms(path) -> Metadata:
         with _open(f"{path}::OBSERVATION") as obs:
             telescope = str(obs.getcell("TELESCOPE_NAME", 0)) if obs.nrows() else "Unknown"
         descriptions = _descriptions(path, {p[0] for p in partitions})
+        summaries = tuple(
+            ScanSummary(
+                scan,
+                field_id,
+                lo if np.isfinite(lo) else None,
+                hi if np.isfinite(hi) else None,
+                count,
+                tuple(sorted(ddids)),
+                tuple(sorted(intents)),
+            )
+            for (scan, field_id), (lo, hi, count, ddids, intents) in sorted(scans.items())
+        )
+        field_intents = tuple(
+            tuple(
+                sorted(
+                    {
+                        intent
+                        for scan in summaries
+                        if scan.field == field_id
+                        for intent in scan.intents
+                    }
+                )
+            )
+            for field_id in range(len(fields))
+        )
         return Metadata(
             path,
             rows,
@@ -157,6 +237,9 @@ def inspect_ms(path) -> Metadata:
             telescope,
             positions,
             position_error,
+            summaries,
+            field_intents,
+            _history(path),
         )
     except (RuntimeError, IndexError, KeyError) as exc:
         raise ValueError(f"Cannot inspect MS: {exc}") from exc
@@ -173,18 +256,104 @@ def _validate(selection):
         raise ValueError("Start time must not exceed end time")
 
 
+def _uvw(preview):
+    """Read optional UVW without turning invalid/missing coordinates into zero."""
+    if "UVW" not in preview.colnames():
+        return None
+    try:
+        units = preview.getcolkeywords("UVW").get("QuantumUnits", [])
+        if len(units) == 1:
+            units = list(units) * 3
+        if len(units) != 3:
+            return None
+        factors = np.asarray([u.Unit(unit).to(u.m) for unit in units])
+        uvw = np.asarray(preview.getcol("UVW"), dtype=float)
+        if uvw.shape != (preview.nrows(), 3) or not np.isfinite(uvw).all():
+            return None
+        return uvw * factors
+    except (RuntimeError, ValueError, TypeError, KeyError):
+        return None
+
+
+def _channel_indices(description, selection):
+    nchan = len(description.frequencies)
+    end = nchan if selection.channel_end is None else selection.channel_end
+    if not 0 <= selection.channel_start < end <= nchan:
+        raise ValueError(f"Channel bounds must satisfy 0 <= start < end <= {nchan}")
+    step = max(1, int(np.ceil((end - selection.channel_start) / selection.max_channels)))
+    return np.arange(selection.channel_start, end, step, dtype=np.int64), end, step
+
+
+def _column_sources(ms, column):
+    residuals = {
+        "DATA-MODEL_DATA": ("DATA", "MODEL_DATA"),
+        "CORRECTED_DATA-MODEL_DATA": ("CORRECTED_DATA", "MODEL_DATA"),
+    }
+    sources = residuals.get(column, (column,))
+    if any(c not in DATA_COLUMNS or c not in ms.colnames() for c in sources):
+        raise ValueError(f"Data column unavailable: {column}")
+    units = [ms.getcolkeywords(c).get("QuantumUnits", []) for c in sources]
+    unit = str(units[0][0]) if len(units[0]) else ""
+    if len(sources) == 2 and (not unit or any(list(v) != list(units[0]) for v in units)):
+        raise ValueError("Residual source units must be known and match")
+    return sources, unit
+
+
+def _read_preview(ms, selected, description, selection, indices, total, correlations=None):
+    channels, end, step = _channel_indices(description, selection)
+    ncorr = len(description.correlations)
+    sources, unit = _column_sources(ms, selection.column)
+    with selected.selectrows(indices) as preview:
+        expected = (len(description.frequencies), ncorr)
+        # Check the original shapes before slicing, especially before subtraction.
+        for column in (*sources, "FLAG"):
+            shapes = preview.getcolshapestring(column)
+            if isinstance(shapes, str):
+                shapes = [shapes]
+            for shape in shapes:
+                parsed = tuple(int(n.strip()) for n in shape.strip("[]").split(",") if n.strip())
+                if parsed != expected:
+                    raise ValueError("Visibility shape does not match SPW/polarization metadata")
+        blc, trc, inc = [int(channels[0]), 0], [int(end - 1), ncorr - 1], [step, 1]
+        values = preview.getcolslice(sources[0], blc, trc, inc)
+        if len(sources) == 2:
+            values = values - preview.getcolslice(sources[1], blc, trc, inc)
+        flags = preview.getcolslice("FLAG", blc, trc, inc)
+        flags |= preview.getcol("FLAG_ROW")[:, None, None]
+        if values.shape != (len(indices), len(channels), ncorr):
+            raise ValueError("Visibility shape does not match SPW/polarization metadata")
+        labels = description.correlations
+        if correlations is not None:
+            values, flags = values[:, :, correlations], flags[:, :, correlations]
+            labels = tuple(labels[i] for i in correlations)
+        return VisibilityBlock(
+            preview.getcol("TIME"),
+            description.frequencies[channels],
+            values,
+            flags,
+            np.asarray(preview.rownumbers(ms)),
+            total,
+            _time_scale(ms),
+            unit,
+            channels,
+            _uvw(preview),
+            preview.getcol("FIELD_ID"),
+            preview.getcol("SCAN_NUMBER"),
+            preview.getcol("ANTENNA1"),
+            preview.getcol("ANTENNA2"),
+            description.ddid,
+            labels,
+        )
+
+
 def read_visibility(path, selection: Selection) -> VisibilityBlock:
     path = _path(path)
     s = selection
     _validate(s)
     try:
         description = _descriptions(path, [s.ddid])[0]
-        nchan, ncorr = len(description.frequencies), len(description.correlations)
-        end = nchan if s.channel_end is None else s.channel_end
-        if not 0 <= s.channel_start < end <= nchan:
-            raise ValueError(f"Channel bounds must satisfy 0 <= start < end <= {nchan}")
-        step = max(1, int(np.ceil((end - s.channel_start) / s.max_channels)))
-        channels = np.arange(s.channel_start, end, step)
+        ncorr = len(description.correlations)
+        channels, _, _ = _channel_indices(description, s)
         conditions = [
             f"DATA_DESC_ID == {int(s.ddid)}",
             f"ANTENNA1 == {int(s.antenna1)}",
@@ -203,35 +372,16 @@ def read_visibility(path, selection: Selection) -> VisibilityBlock:
                     else f"{column} == {int(value)}"
                 )
         with _open(path) as ms:
-            if s.column not in DATA_COLUMNS or s.column not in ms.colnames():
-                raise ValueError(f"Data column unavailable: {s.column}")
-            scale = _time_scale(ms)
-            units = ms.getcolkeywords(s.column).get("QuantumUnits", [""])
+            sources, _ = _column_sources(ms, s.column)
             with ms.query(" && ".join(conditions), sortlist="TIME") as selected:
                 total = selected.nrows()
                 if not total:
                     raise ValueError("No rows match this selection")
-                cap = min(s.max_rows, max(1, PREVIEW_BYTES // (len(channels) * ncorr * 32)))
+                bytes_per_value = 64 if len(sources) > 1 else 32
+                cap = min(
+                    s.max_rows, max(1, PREVIEW_BYTES // (len(channels) * ncorr * bytes_per_value))
+                )
                 indices = np.linspace(0, total - 1, min(total, cap), dtype=np.int64)
-                with selected.selectrows(indices) as preview:
-                    # getcolslice uses an INCLUSIVE end, unlike Python slices.
-                    blc, trc, inc = [s.channel_start, 0], [end - 1, ncorr - 1], [step, 1]
-                    values = preview.getcolslice(s.column, blc, trc, inc)
-                    flags = preview.getcolslice("FLAG", blc, trc, inc)
-                    flags |= preview.getcol("FLAG_ROW")[:, None, None]
-                    if values.shape != (len(indices), len(channels), ncorr):
-                        raise ValueError(
-                            "Visibility shape does not match SPW/polarization metadata"
-                        )
-                    return VisibilityBlock(
-                        preview.getcol("TIME"),
-                        description.frequencies[channels],
-                        values,
-                        flags,
-                        np.asarray(preview.rownumbers(ms)),
-                        total,
-                        scale,
-                        str(units[0]) if len(units) else "",
-                    )
+                return _read_preview(ms, selected, description, s, indices, total)
     except (RuntimeError, IndexError, KeyError) as exc:
         raise ValueError(f"Cannot read MS selection: {exc}") from exc

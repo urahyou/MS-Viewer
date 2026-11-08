@@ -36,7 +36,11 @@ from .model import Selection
 from .processing import QUANTITIES, prepare_plot
 from .reader import inspect_ms, read_visibility
 from .resources import SAMPLE_NAMES, prepare_sample, sample_source, tutorial_path
+from .workbench import WorkbenchMixin
+from .workbench_text import WORDS
 from .workers import Job
+
+CHINESE.update(WORDS)
 
 pg.setConfigOptions(
     antialias=False, imageAxisOrder="row-major", background="#131d2b", foreground="#aebdce"
@@ -80,7 +84,7 @@ def _fill(combo, pairs, preferred=None):
     del blocker
 
 
-class MainWindow(QMainWindow):
+class MainWindow(WorkbenchMixin, QMainWindow):
     def __init__(self):
         super().__init__()
         self.settings = QSettings("RadioAstronomy", "MSViewer")
@@ -107,6 +111,7 @@ class MainWindow(QMainWindow):
         self.resize(1360, 900)
         self.setStyleSheet(STYLE)
         self._build_ui()
+        self._install_workbench()
         self._capture_static_texts()
         self.set_language(self.language, persist=False)
 
@@ -203,7 +208,7 @@ class MainWindow(QMainWindow):
         self.export_button = QPushButton("Export plots as PNG…")
         self.export_button.clicked.connect(self.export_png)
         side.addWidget(self.export_button)
-        scroll = QScrollArea()
+        scroll = self.selection_scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setWidget(panel)
         scroll.setMinimumWidth(370)
@@ -330,9 +335,13 @@ class MainWindow(QMainWindow):
             self._error("Could not open the tutorial")
 
     def _start_open(self, path, function):
+        self._capture_workspace()
+        self.diagnostic.clear()
+        self.inspector.clear()
         self.timer.stop()
         self._token += 1
         self._opening = True
+        self.focus_combo.setEnabled(False)
         self.antenna_map.set_baseline(None)
         self.linked_cursor.set_data(None)
         self.selection_panel.setEnabled(False)
@@ -361,19 +370,29 @@ class MainWindow(QMainWindow):
             if kind == "open":
                 self._opening = False
                 self.selection_panel.setEnabled(True)
+                self.focus_combo.setEnabled(self._selection_current and bool(self._blocks))
             if error:
                 self._error(error)
             elif kind == "open":
                 self._set_metadata(result)
+            elif kind == "query":
+                self._receive_blocks(result)
             else:
-                self.block = result
-                self._selection_current = True
-                self._render(reset_view=True)
+                self._receive_blocks((result,))
             if kind == "open" and self._selection_current and self.plot_data is not None:
                 # A failed/unusable open retains the previous, still-current preview.
                 self.linked_cursor.set_data(self.plot_data)
+                self.diagnostic.set_blocks(self._blocks)
             if kind == "open" and self.metadata is not None:
-                self.antenna_map.set_baseline(self.baseline_combo.currentData())
+                pair = self.baseline_combo.currentData()
+                if (
+                    self._selection_current
+                    and self.block is not None
+                    and self.block.antenna1 is not None
+                    and self.block.antenna2 is not None
+                ):
+                    pair = (int(self.block.antenna1[0]), int(self.block.antenna2[0]))
+                self.antenna_map.set_baseline(pair)
         # _set_metadata may immediately submit a fresh read.
         if self._job is None and self._pending is not None:
             pending, self._pending = self._pending, None
@@ -386,6 +405,7 @@ class MainWindow(QMainWindow):
             self._error("This MS has no readable visibility data or is empty")
             return
         self.metadata = meta
+        self._workbench_metadata(meta)
         self.antenna_map.set_metadata(meta)
         self._selection_current = False
         self.block = None
@@ -402,11 +422,15 @@ class MainWindow(QMainWindow):
         _fill(
             self.ddid_combo, [(f"DDID {d.ddid} / SPW {d.spw}", d.ddid) for d in meta.descriptions]
         )
-        _fill(self.column_combo, [(c, c) for c in meta.columns])
+        columns = list(meta.columns)
+        if "MODEL_DATA" in columns:
+            columns += [f"{c}-MODEL_DATA" for c in ("DATA", "CORRECTED_DATA") if c in meta.columns]
+        _fill(self.column_combo, [(c, c) for c in columns])
         self.time_start.clear()
         self.time_end.clear()
         self.apply_button.setEnabled(bool(meta.columns and meta.descriptions))
         self._ddid_changed()
+        self._restore_workspace()
 
     def _description(self):
         return next(
@@ -475,6 +499,9 @@ class MainWindow(QMainWindow):
             self._set_status("Selection changed · updating preview…")
 
     def request_read(self, *_):
+        if self._query_mode:
+            self.request_query()
+            return
         if self._opening or self._closing:
             return
         self.timer.stop()
@@ -587,7 +614,10 @@ class MainWindow(QMainWindow):
     def _mark_previous(self):
         """Keep prior results, but never reinterpret them with a new selection."""
         self._selection_current = False
+        self.focus_combo.setEnabled(False)
         self.linked_cursor.set_data(None)
+        self.diagnostic.clear()
+        self.inspector.clear()
         self._update_plot_labels()
 
     def _cursor_changed(self, position):
@@ -680,10 +710,13 @@ class MainWindow(QMainWindow):
         self._update_plot_labels()
         self._refresh_status()
         self._refresh_cursor()
+        self._workbench_language()
 
     def _set_status(self, source, **values):
         self._status_source, self._status_values = source, values
         self._refresh_status()
+        if hasattr(self, "task_log"):
+            self.task_log.appendPlainText(self.status_label.text())
 
     def _refresh_status(self):
         values = dict(self._status_values)

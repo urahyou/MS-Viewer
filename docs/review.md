@@ -25,3 +25,7 @@ A separate fresh, read-only reviewer examined i18n.py, language integration in w
 settings isolation and language tests. Verdict: approve, no actionable findings. Independently
 verified all 62 tests at that stage. Subsequent native dialog QA found missing upstream Qt
 labels; added a failing regression and translator supplements. Final suite: 63 passing tests.
+
+## v0.2.0 modern workbench review
+
+Bounded source review includes newly added/untracked modules as well as tracked diffs. Initial approval with one LOW inconsistency: boolean antenna IDs accepted by baseline validation. Fixed via RED→GREEN regression. Parent also reproduced and fixed quick-preview residual rejection and old-focus reactivation after a grouped-filter draft edit; follow-up review found no blocker. Reader remains readonly, grouped queries retain original scientific identities with global budgets, and Locate maps only displayed sampled points. Reviewer inspected artifacts but lacked casacore for independent execution. Parent final suite: 182 passed; Ruff/format clean. Native package QA recorded in docs/tdd-log.md.

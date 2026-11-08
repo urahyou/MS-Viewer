@@ -26,8 +26,8 @@ collect=COLLECT(exe,a.binaries,a.datas,strip=False,upx=False,name='MS Viewer')
 app=BUNDLE(collect,name='MS Viewer.app',icon=str(root/'packaging/macos/MSViewer.icns'),
     bundle_identifier='io.github.urahyou.msviewer',
     info_plist={
-      'CFBundleDisplayName':'MS Viewer', 'CFBundleShortVersionString':'0.1.2',
-      'CFBundleVersion':'3', 'NSHighResolutionCapable':True,
+      'CFBundleDisplayName':'MS Viewer', 'CFBundleShortVersionString':'0.2.0',
+      'CFBundleVersion':'4', 'NSHighResolutionCapable':True,
       'NSHumanReadableCopyright':'GPL-3.0-only. Source: github.com/urahyou/MS-Viewer',
       'CFBundleDocumentTypes':[{'CFBundleTypeName':'Measurement Set','CFBundleTypeExtensions':['ms'],
           'CFBundleTypeRole':'Viewer','LSTypeIsPackage':True}],
