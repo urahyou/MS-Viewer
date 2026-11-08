@@ -29,6 +29,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from .antenna_map import AntennaMap
 from .cursor import LinkedCursor
 from .i18n import CHINESE, error_text, install_qt_language, text
 from .model import Selection
@@ -73,7 +74,8 @@ def _fill(combo, pairs, preferred=None):
     combo.clear()
     for label, data in pairs:
         combo.addItem(label, data)
-    index = combo.findData(preferred)
+    # QVariant cannot reliably compare Python tuple baseline IDs by value.
+    index = next((i for i in range(combo.count()) if combo.itemData(i) == preferred), -1)
     combo.setCurrentIndex(max(0, index))
     del blocker
 
@@ -242,6 +244,8 @@ class MainWindow(QMainWindow):
         self.metadata_text.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
         self.metadata_text.setReadOnly(True)
         tabs.addTab(self.metadata_text, "MS metadata")
+        self.antenna_map = AntennaMap()
+        tabs.addTab(self.antenna_map, "Antenna positions")
         splitter.addWidget(tabs)
         splitter.setStretchFactor(1, 1)
         splitter.setSizes([370, 1000])
@@ -294,8 +298,8 @@ class MainWindow(QMainWindow):
         self.ddid_combo.currentIndexChanged.connect(self._ddid_changed)
         self.field_combo.currentIndexChanged.connect(self._field_changed)
         self.scan_combo.currentIndexChanged.connect(self._scan_changed)
-        for widget in (self.baseline_combo, self.column_combo):
-            widget.currentIndexChanged.connect(self._schedule)
+        self.baseline_combo.currentIndexChanged.connect(self._baseline_changed)
+        self.column_combo.currentIndexChanged.connect(self._schedule)
         for widget in (self.channel_start, self.channel_end, self.max_rows, self.max_channels):
             widget.valueChanged.connect(self._schedule)
         for widget in (self.time_start, self.time_end):
@@ -329,6 +333,7 @@ class MainWindow(QMainWindow):
         self.timer.stop()
         self._token += 1
         self._opening = True
+        self.antenna_map.set_baseline(None)
         self.linked_cursor.set_data(None)
         self.selection_panel.setEnabled(False)
         self.last_error = ""
@@ -367,6 +372,8 @@ class MainWindow(QMainWindow):
             if kind == "open" and self._selection_current and self.plot_data is not None:
                 # A failed/unusable open retains the previous, still-current preview.
                 self.linked_cursor.set_data(self.plot_data)
+            if kind == "open" and self.metadata is not None:
+                self.antenna_map.set_baseline(self.baseline_combo.currentData())
         # _set_metadata may immediately submit a fresh read.
         if self._job is None and self._pending is not None:
             pending, self._pending = self._pending, None
@@ -379,6 +386,7 @@ class MainWindow(QMainWindow):
             self._error("This MS has no readable visibility data or is empty")
             return
         self.metadata = meta
+        self.antenna_map.set_metadata(meta)
         self._selection_current = False
         self.block = None
         self.plot_data = None
@@ -452,6 +460,10 @@ class MainWindow(QMainWindow):
             [(f"{names[a]} → {names[b]}", (a, b)) for a, b in baselines],
             previous,
         )
+        self._baseline_changed()
+
+    def _baseline_changed(self, *_):
+        self.antenna_map.set_baseline(self.baseline_combo.currentData())
         self._schedule()
 
     def _schedule(self, *_):
@@ -650,6 +662,8 @@ class MainWindow(QMainWindow):
                 del blocker
         self.tabs.setTabText(0, self._text("Visibilities"))
         self.tabs.setTabText(1, self._text("MS metadata"))
+        self.tabs.setTabText(2, self._text("Antenna positions"))
+        self.antenna_map.set_language(language)
         self.language_actions[language].setChecked(True)
         self.setWindowTitle(
             self._text("{name} · MS Viewer", name=self.metadata.path.name)

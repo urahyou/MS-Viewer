@@ -2,7 +2,7 @@
 
 ## 安装
 
-1. 下载 MS-Viewer-0.1.1-macOS-arm64.dmg，双击打开。
+1. 下载 MS-Viewer-0.1.2-macOS-arm64.dmg，双击打开。
 2. 将 MS Viewer.app 拖到 Applications（应用程序）文件夹。
 3. 从“应用程序”打开 MS Viewer；在“样例”中打开模拟、ALMA 或 BIMA 数据。
 4. “语言 / Language”切换中英文，“帮助”中可打开内置 PDF 图解教程。

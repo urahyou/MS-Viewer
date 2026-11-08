@@ -12,5 +12,5 @@ trap 'rm -rf "$STAGING"' EXIT
 ditto 'dist/MS Viewer.app' "$STAGING/MS Viewer.app"
 ln -s /Applications "$STAGING/Applications"
 cp docs/macos-install.md "$STAGING/安装说明.txt"
-hdiutil create -volname 'MS Viewer' -srcfolder "$STAGING" -ov -format UDZO 'dist/MS-Viewer-0.1.1-macOS-arm64.dmg'
-(cd dist && shasum -a 256 'MS-Viewer-0.1.1-macOS-arm64.dmg' > SHA256SUMS.txt)
+hdiutil create -volname 'MS Viewer' -srcfolder "$STAGING" -ov -format UDZO 'dist/MS-Viewer-0.1.2-macOS-arm64.dmg'
+(cd dist && shasum -a 256 'MS-Viewer-0.1.2-macOS-arm64.dmg' > SHA256SUMS.txt)

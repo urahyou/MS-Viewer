@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import numpy as np
+from astropy import units as u
 from casacore.tables import table
 
 from .model import DataDescription, Metadata, Selection, VisibilityBlock
@@ -80,6 +81,43 @@ def _descriptions(path, ids):
     return tuple(results)
 
 
+def _antenna_positions(ant):
+    # Optional plotting metadata must never block otherwise readable visibilities.
+    if "POSITION" not in ant.colnames():
+        return None, "Antenna POSITION column is missing"
+    try:
+        keywords = ant.getcolkeywords("POSITION")
+    except (RuntimeError, ValueError, TypeError):
+        return None, "Invalid antenna position metadata"
+    if not isinstance(keywords, dict):
+        return None, "Invalid antenna position metadata"
+    measure = keywords.get("MEASINFO", {})
+    if not isinstance(measure, dict):
+        return None, "Invalid antenna position metadata"
+    frame = str(measure.get("Ref", "Unknown"))
+    if frame.upper() != "ITRF" or "VarRefCol" in measure:
+        return None, f"Unsupported antenna position reference: {frame}"
+    try:
+        units = keywords.get("QuantumUnits", [])
+        if len(units) == 1:
+            units = list(units) * 3
+        if len(units) != 3:
+            raise ValueError("Three length units are required")
+        factors = np.array([u.Unit(unit).to(u.m) for unit in units])
+    except (ValueError, TypeError):
+        return None, "Unsupported antenna position units"
+    positions = np.full((ant.nrows(), 3), np.nan)
+    for row in range(ant.nrows()):
+        try:
+            if ant.iscelldefined("POSITION", row):
+                cell = np.asarray(ant.getcell("POSITION", row), dtype=float)
+                if cell.shape == (3,):
+                    positions[row] = cell * factors
+        except (RuntimeError, ValueError, TypeError):
+            continue  # Keep a missing endpoint missing, without inventing its location.
+    return positions, ""
+
+
 def inspect_ms(path) -> Metadata:
     path = _path(path)
     try:
@@ -101,6 +139,7 @@ def inspect_ms(path) -> Metadata:
             rows = ms.nrows()
         with _open(f"{path}::ANTENNA") as ant, _open(f"{path}::FIELD") as field:
             antennas = tuple(ant.getcol("NAME"))
+            positions, position_error = _antenna_positions(ant)
             fields = tuple(field.getcol("NAME"))
         with _open(f"{path}::OBSERVATION") as obs:
             telescope = str(obs.getcell("TELESCOPE_NAME", 0)) if obs.nrows() else "Unknown"
@@ -116,6 +155,8 @@ def inspect_ms(path) -> Metadata:
             (time_min, time_max) if np.isfinite(time_min) else None,
             scale,
             telescope,
+            positions,
+            position_error,
         )
     except (RuntimeError, IndexError, KeyError) as exc:
         raise ValueError(f"Cannot inspect MS: {exc}") from exc

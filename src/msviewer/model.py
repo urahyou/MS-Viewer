@@ -55,6 +55,8 @@ class Metadata:
     time_range: tuple[float, float] | None
     time_scale: str
     telescope: str
+    antenna_positions: np.ndarray | None = None  # ITRF Cartesian metres, original IDs
+    antenna_position_error: str = ""
 
 
 @dataclass(frozen=True)

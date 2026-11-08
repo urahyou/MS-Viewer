@@ -4,6 +4,22 @@ from PyQt6.QtCore import QLibraryInfo, QTranslator
 from PyQt6.QtWidgets import QApplication
 
 CHINESE = {
+    "Invalid antenna position metadata": "天线位置元数据格式无效",
+    "Antenna positions": "天线位置",
+    "East": "东",
+    "North": "北",
+    "Open an MS to see antenna positions.": "打开 MS 后可查看天线位置。",
+    "Antenna positions unavailable: {reason}": "天线位置不可用: {reason}",
+    "Visibility data can still be inspected.": "仍可查看可见度数据。",
+    "No usable geocentric antenna positions": "没有有效的地心天线坐标",
+    "Invalid antenna position shape": "天线位置数组形状无效",
+    "Antenna POSITION column is missing": "缺少天线 POSITION 列",
+    "Unsupported antenna position units": "天线位置单位不受支持",
+    "Choose a baseline in the left panel to highlight its antennas.": "在左侧选择基线，即可高亮对应的天线。",
+    "{baseline} · endpoint position unavailable": "{baseline} · 端点位置不可用",
+    "{baseline} · 3D baseline length: {length:.3f} m": "{baseline} · 三维基线长度: {length:.3f} 米",
+    "{baseline} · Auto-correlation · 3D baseline length: {length:.3f} m": "{baseline} · 自相关 · 三维基线长度: {length:.3f} 米",
+    "Local east/north projection · origin: {name} ({id}) · {missing} positions unavailable. Colours follow ANTENNA1 → ANTENNA2; length uses all three spatial dimensions.": "局部东—北投影 · 原点: {name} ({id}) · {missing} 面天线的位置不可用。颜色按 ANTENNA1 → ANTENNA2 对应；长度采用完整三维坐标计算。",
     "Linked cursor: hover over any plot; mean curves stay unchanged.": "联动光标：在任意图中移动鼠标；曲线保持现有均值。",
     "Preview channel {channel} · {frequency:.6f} MHz": "预览通道 {channel} · {frequency:.6f} MHz",
     "MS row {row} · {time} {scale} · +{elapsed:.3f} s": "MS 行 {row} · {time} {scale} · +{elapsed:.3f} 秒",
@@ -102,6 +118,7 @@ CHINESE = {
 }
 
 ERROR_PREFIXES = {
+    "Unsupported antenna position reference: ": "不支持的天线位置参考系: ",
     "Not a Measurement Set directory: ": "不是有效的 Measurement Set 目录: ",
     "Invalid selection: ": "筛选条件无效: ",
     "Cannot inspect MS: ": "无法检查 MS: ",
