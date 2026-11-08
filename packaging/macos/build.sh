@@ -13,4 +13,4 @@ ditto 'dist/MS Viewer.app' "$STAGING/MS Viewer.app"
 ln -s /Applications "$STAGING/Applications"
 cp docs/macos-install.md "$STAGING/安装说明.txt"
 hdiutil create -volname 'MS Viewer' -srcfolder "$STAGING" -ov -format UDZO 'dist/MS-Viewer-0.1.0-macOS-arm64.dmg'
-shasum -a 256 'dist/MS-Viewer-0.1.0-macOS-arm64.dmg' > 'dist/SHA256SUMS.txt'
+(cd dist && shasum -a 256 'MS-Viewer-0.1.0-macOS-arm64.dmg' > SHA256SUMS.txt)
