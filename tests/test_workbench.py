@@ -171,3 +171,14 @@ def test_stale_focus_cannot_reactivate_results_after_grouped_draft_edit(qtbot, t
     assert not w._selection_current
     assert not w.focus_combo.isEnabled()
     assert w.linked_cursor.position is None
+
+
+def test_existing_legend_and_time_title_repaint_on_theme_change(qtbot, tiny_ms):
+    w = opened(qtbot, tiny_ms)
+    w.set_theme("light")
+    legend_label = w.diagnostic.legend.items[0][1]
+    assert "#25344a" in legend_label.item.toHtml()
+    assert "#25344a" in w.diagnostic.plot.getPlotItem().titleLabel.item.toHtml()
+    w.set_theme("dark")
+    assert "#aebdce" in legend_label.item.toHtml()
+    assert "#aebdce" in w.diagnostic.plot.getPlotItem().titleLabel.item.toHtml()

@@ -611,8 +611,11 @@ class WorkbenchMixin:
             for axis in ("bottom", "left"):
                 plot.getAxis(axis).setPen(fg)
                 plot.getAxis(axis).setTextPen(fg)
-            plot.titleLabel.setAttr("color", fg)
+            plot.titleLabel.setText(plot.titleLabel.text, color=fg)
         self.diagnostic.legend.setLabelTextColor(fg)
+        # LabelItem.setAttr changes defaults only; repaint its existing HTML too.
+        for _, label in self.diagnostic.legend.items:
+            label.setText(label.text, color=fg)
         highlight = "#9b6200" if theme == "light" else "#fff1a8"
         self.diagnostic.selection_scatter.setPen(highlight, width=2)
         self.diagnostic.roi.setPen(highlight)

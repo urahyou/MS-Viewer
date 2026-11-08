@@ -156,7 +156,7 @@ python3.12 -m venv .venv
 ## TDD 与验证
 
 每层都先写测试并实际观察失败，再实现并运行通过；记录在 `docs/tdd-log.md`，失败/通过日志保存在 `artifacts/`。
-v0.2.0 验证为 **182 个测试通过、0 跳过**，并通过 Ruff 检查与 wheel 打包。
+v0.2.0 验证为 **183 个测试通过、0 跳过**，并通过 Ruff 检查与 wheel 打包。
 测试使用真实 casacore MS 文件，而非仅 Mock 读取器；Qt 集成测试实际运行后台任务与绘图组件。
 
 ```bash
