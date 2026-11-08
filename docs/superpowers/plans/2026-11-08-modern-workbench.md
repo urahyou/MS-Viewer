@@ -26,4 +26,4 @@
 - [x] Diagnostic worker: new diagnostic.py, tests/test_diagnostic.py. TDD point axes, mask, mixed shape grouping, original identities, scatter click and region Locate, clear stale data, translation; keep own translation map or callback, do not edit i18n/window/model/reader.
 - [x] Parent: new overview.py, query_controls.py, workbench.py (UI state/inspector/helpers), tests; integrate window.py/i18n, modern dockable shell and explicit focus vs group selection state. TDD readable unknown calibration state, bilingual UI, grouping/read/Locate lifecycle and file switching.
 - [x] Integrate and run full tests/lint; independently review scientific boundaries and UI lifecycle; fix material issues with regressions.
-- [ ] Native UI QA, build/install v0.2.0, preserve previous app; CI, publish source and verified DMG/SHA256. Record changes and limitations accurately.
+- [x] Native UI QA, build/install v0.2.0, preserve previous app; CI, publish source and verified DMG/SHA256. Record changes and limitations accurately.
