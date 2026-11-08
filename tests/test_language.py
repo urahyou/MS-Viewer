@@ -4,7 +4,6 @@ import threading
 
 import numpy as np
 import pytest
-from PyQt6.QtCore import QSettings
 from PyQt6.QtWidgets import QFileDialog, QFormLayout
 
 
@@ -82,11 +81,11 @@ def test_chinese_quantity_still_uses_stable_processing_identifier(qtbot, tiny_ms
     assert "相位" in window.time_plot.getAxis("left").label.toPlainText()
 
 
-def test_language_survives_restart_with_real_settings(qtbot):
+def test_language_survives_restart_with_real_settings(qtbot, isolated_language_settings):
     first = make_window(qtbot)
     first.set_language("zh")
     first.close()
-    assert QSettings("RadioAstronomy", "MSViewer").value("language") == "zh"
+    assert isolated_language_settings.value("language") == "zh"
     second = make_window(qtbot)
     assert second.language == "zh"
     assert second.open_button.text() == "打开 Measurement Set…"
@@ -154,8 +153,8 @@ def test_dialog_caption_and_filter_follow_language(qtbot, tiny_ms, tmp_path, mon
     assert (tmp_path / "export.png").is_file()
 
 
-def test_invalid_saved_language_falls_back_to_english(qtbot):
-    settings = QSettings("RadioAstronomy", "MSViewer")
+def test_invalid_saved_language_falls_back_to_english(qtbot, isolated_language_settings):
+    settings = isolated_language_settings
     settings.setValue("language", "invalid")
     window = make_window(qtbot)
     assert window.language == "en"

@@ -61,18 +61,17 @@ def tiny_ms(tmp_path):
 
 
 @pytest.fixture(autouse=True)
-def isolated_language_settings(tmp_path):
-    """Use real, isolated settings; tests never overwrite the user's language preference."""
+def isolated_language_settings(tmp_path, monkeypatch):
+    """Use real INI settings; macOS org/name constructors ignore defaultFormat."""
     from PyQt6.QtCore import QSettings
 
-    old_format = QSettings.defaultFormat()
-    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
-    QSettings.setPath(
-        QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path / "settings")
-    )
-    settings = QSettings("RadioAstronomy", "MSViewer")
-    settings.clear()
+    settings_path = str(tmp_path / "settings.ini")
+
+    def factory(*_args, **_kwargs):
+        return QSettings(settings_path, QSettings.Format.IniFormat)
+
+    monkeypatch.setattr("msviewer.window.QSettings", factory)
+    settings = factory()
     settings.setValue("language", "en")
     settings.sync()
-    yield
-    QSettings.setDefaultFormat(old_format)
+    yield settings

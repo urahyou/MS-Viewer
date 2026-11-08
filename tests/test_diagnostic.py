@@ -286,3 +286,23 @@ def test_time_axis_identifies_reference_time_scale(qtbot):
     widget.set_blocks((block(time_scale="tai"),))
     assert "TAI" in widget.plot.getAxis("bottom").labelText
     assert "TAI" in widget.plot.getPlotItem().titleLabel.text
+
+
+def test_quick_preview_legend_does_not_mislabel_mixed_fields_or_scans(qtbot):
+    widget = view(qtbot)
+    widget.set_blocks((block(field_ids=np.array([2, 3]), scan_numbers=np.array([9, 10])),))
+    label = widget.legend.items[0][1].text
+    assert "F 2,3" in label and "S 9,10" in label
+
+
+def test_translation_reuses_active_legend_items_while_layout_events_are_queued(qtbot):
+    widget = view(qtbot)
+    widget.set_blocks((block(),))
+    label = widget.legend.items[0][1]
+    widget.resize(650, 420)
+    widget.set_language("zh")
+    assert widget.legend.items[0][1] is label
+    widget.set_language("en")
+    assert widget.legend.items[0][1] is label
+    qtbot.wait(1)
+    assert "Group 1" in label.item.toPlainText()

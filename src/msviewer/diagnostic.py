@@ -316,21 +316,37 @@ class DiagnosticView(QWidget):
         return int(values[row]) if values is not None and row < len(values) else None
 
     def _update_legend(self):
-        self.legend.clear()
-        self._legend_samples = []
+        # Preserve active LabelItems across translation/axis changes: Linux Qt
+        # may still have resize events queued for them. Rebuild only on count changes.
+        reuse = len(self.legend.items) == len(self.blocks)
+        if not reuse:
+            self.legend.clear()
+            self._legend_samples = []
         for index, block in enumerate(self.blocks):
-            item = pg.ScatterPlotItem(pen=None, brush=pg.mkBrush(_COLORS[index % len(_COLORS)]))
-            self._legend_samples.append(item)
             label = f"{_WORDS[self.language]['group']} {index + 1} · DDID {block.ddid}"
             if len(block.row_ids):
-                field = self._row_identity(block, "field_ids", 0)
-                scan = self._row_identity(block, "scan_numbers", 0)
-                ant1 = self._row_identity(block, "antenna1", 0)
-                ant2 = self._row_identity(block, "antenna2", 0)
+
+                def identities(name, block=block):
+                    array = getattr(block, name, None)
+                    if array is None:
+                        return "?"
+                    unique = np.unique(array)
+                    prefix = ",".join(str(int(v)) for v in unique[:4])
+                    return prefix + ("…" if len(unique) > 4 else "")
+
+                field = identities("field_ids")
+                scan = identities("scan_numbers")
+                ant1 = identities("antenna1")
+                ant2 = identities("antenna2")
                 label += f" · F {field} · S {scan} · {ant1}→{ant2}"
             if block.unit:
                 label += f" · {block.unit}"
-            self.legend.addItem(item, label)
+            if reuse:
+                self.legend.items[index][1].setText(label, color=self.legend.labelTextColor())
+            else:
+                item = pg.ScatterPlotItem(pen=None, brush=pg.mkBrush(_COLORS[index % len(_COLORS)]))
+                self._legend_samples.append(item)
+                self.legend.addItem(item, label)
 
     def _update_status(self):
         words = _WORDS[self.language]

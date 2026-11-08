@@ -182,3 +182,8 @@ def test_existing_legend_and_time_title_repaint_on_theme_change(qtbot, tiny_ms):
     w.set_theme("dark")
     assert "#aebdce" in legend_label.item.toHtml()
     assert "#aebdce" in w.diagnostic.plot.getPlotItem().titleLabel.item.toHtml()
+
+
+def test_workbench_tests_never_use_native_user_preferences(qtbot, tiny_ms, tmp_path):
+    w = opened(qtbot, tiny_ms)
+    assert str(tmp_path) in w.settings.fileName()

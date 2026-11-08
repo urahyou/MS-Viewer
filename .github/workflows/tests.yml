@@ -23,6 +23,6 @@ jobs:
         run: python -m msviewer --demo --inspect
       - name: Tests and lint
         run: |
-          python -m pytest -q
+          python -m pytest -v
           python -m ruff check src tests scripts packaging
           python -m ruff format --check src tests scripts packaging
