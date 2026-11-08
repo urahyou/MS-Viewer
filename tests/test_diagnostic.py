@@ -326,7 +326,9 @@ def test_axis_change_fits_new_coordinates_without_resetting_other_axis(qtbot):
 
 def test_frequency_axis_never_prefixes_an_already_scaled_mhz_unit(qtbot):
     widget = view(qtbot)
-    widget.set_blocks((block(frequencies=np.array([1350e6, 1500e6])),))
+    widget.set_blocks(
+        (block(frequencies=np.array([1350e6, 1500e6]), times=np.array([5e9, 5e9 + 2000])),)
+    )
     axis(widget.x_combo, "FREQ")
     widget.reset_view()
     qtbot.wait(1)

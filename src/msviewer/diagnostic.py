@@ -309,7 +309,9 @@ class DiagnosticView(QWidget):
                     origin_title = f"{stamp} {scale.upper()}"
             self.plot.setLabel(position, label, units=unit)
             # Frequencies are already converted from Hz to MHz above.
-            self.plot.getAxis(position).enableAutoSIPrefix(identifier != "FREQ")
+            axis = self.plot.getAxis(position)
+            axis.setSIPrefixEnableRanges(() if identifier == "FREQ" else None)
+            axis.enableAutoSIPrefix(identifier != "FREQ")
         self.plot.setTitle(origin_title)
 
     @staticmethod
