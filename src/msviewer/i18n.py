@@ -4,6 +4,14 @@ from PyQt6.QtCore import QLibraryInfo, QTranslator
 from PyQt6.QtWidgets import QApplication
 
 CHINESE = {
+    "Linked cursor: hover over any plot; mean curves stay unchanged.": "联动光标：在任意图中移动鼠标；曲线保持现有均值。",
+    "Preview channel {channel} · {frequency:.6f} MHz": "预览通道 {channel} · {frequency:.6f} MHz",
+    "MS row {row} · {time} {scale} · +{elapsed:.3f} s": "MS 行 {row} · {time} {scale} · +{elapsed:.3f} 秒",
+    "Sample {quantity}: {value} {unit}": "单样本{quantity}: {value} {unit}",
+    "Spectrum mean: {value} {unit}": "频谱均值: {value} {unit}",
+    "Time mean: {value} {unit}": "时间均值: {value} {unit}",
+    "hidden / non-finite": "已隐藏 / 非有限值",
+    "Flagged": "已标记",
     "Help": "帮助",
     "Open illustrated guide (PDF)…": "打开图解教程（PDF）…",
     "Could not open the tutorial": "无法打开教程",

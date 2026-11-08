@@ -29,6 +29,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from .cursor import LinkedCursor
 from .i18n import CHINESE, error_text, install_qt_language, text
 from .model import Selection
 from .processing import QUANTITIES, prepare_plot
@@ -228,7 +229,14 @@ class MainWindow(QMainWindow):
         self.colorbar.setImageItem(self.image_item, insert_in=self.waterfall_plot)
         self.graphics.ci.layout.setRowStretchFactor(0, 1)
         self.graphics.ci.layout.setRowStretchFactor(1, 2)
-        self.graphics.scene().sigMouseMoved.connect(self._hover)
+        self.linked_cursor = LinkedCursor(
+            self.graphics,
+            self.spectrum_plot,
+            self.time_plot,
+            self.waterfall_plot,
+            self.image_item,
+            self._cursor_changed,
+        )
         tabs.addTab(self.graphics, "Visibilities")
         self.metadata_text = QPlainTextEdit()
         self.metadata_text.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
@@ -246,6 +254,7 @@ class MainWindow(QMainWindow):
             "Waterfall axes are sample indices; hover to see frequency, time and original row."
         )
         self.cursor_label.setObjectName("muted")
+        self.cursor_label.setWordWrap(True)
         layout.addWidget(self.cursor_label)
         self.status_label = QLabel("Ready · MS data are opened read-only")
         self.status_label.setTextFormat(Qt.TextFormat.PlainText)
@@ -318,6 +327,7 @@ class MainWindow(QMainWindow):
         self.timer.stop()
         self._token += 1
         self._opening = True
+        self.linked_cursor.set_data(None)
         self.selection_panel.setEnabled(False)
         self.last_error = ""
         self._set_status("Opening {name}…", name=Path(path).name)
@@ -352,6 +362,9 @@ class MainWindow(QMainWindow):
                 self.block = result
                 self._selection_current = True
                 self._render(reset_view=True)
+            if kind == "open" and self._selection_current and self.plot_data is not None:
+                # A failed/unusable open retains the previous, still-current preview.
+                self.linked_cursor.set_data(self.plot_data)
         # _set_metadata may immediately submit a fresh read.
         if self._job is None and self._pending is not None:
             pending, self._pending = self._pending, None
@@ -370,6 +383,7 @@ class MainWindow(QMainWindow):
         self.spectrum_curve.clear()
         self.time_curve.clear()
         self.image_item.clear()
+        self.linked_cursor.set_data(None)
         self.path_label.setText(str(meta.path))
         self.setWindowTitle(self._text("{name} · MS Viewer", name=meta.path.name))
         self._cursor_position = None
@@ -553,23 +567,17 @@ class MainWindow(QMainWindow):
             channels=len(self.block.frequencies),
             flagged=plot.flag_fraction,
         )
-        self._cursor_position = None
-        self._refresh_cursor()
+        self.linked_cursor.set_data(plot)
         self.export_button.setEnabled(True)
 
     def _mark_previous(self):
         """Keep prior results, but never reinterpret them with a new selection."""
         self._selection_current = False
+        self.linked_cursor.set_data(None)
         self._update_plot_labels()
 
-    def _hover(self, position):
-        if self.plot_data is None or not self.waterfall_plot.sceneBoundingRect().contains(position):
-            return
-        point = self.image_item.mapFromScene(position)
-        row, channel = int(np.floor(point.y())), int(np.floor(point.x()))
-        if not (0 <= row < len(self.block.times) and 0 <= channel < len(self.block.frequencies)):
-            return
-        self._cursor_position = (row, channel)
+    def _cursor_changed(self, position):
+        self._cursor_position = position
         self._refresh_cursor()
 
     def _error(self, text):
@@ -772,20 +780,59 @@ class MainWindow(QMainWindow):
     def _refresh_cursor(self):
         if self._cursor_position is None or self.plot_data is None:
             self.cursor_label.setText(
-                self._text(
-                    "Waterfall axes are sample indices; hover to see frequency, time and original row."
-                )
+                self._text("Linked cursor: hover over any plot; mean curves stay unchanged.")
             )
             return
         row, channel = self._cursor_position
-        self.cursor_label.setText(
-            self._text(
-                "MS row {row}  |  {time} {scale}  |  {frequency:.6f} MHz  |  {value:.5g} {unit}",
-                row=self.block.row_ids[row],
-                time=_date(self.block.times[row], self.block.time_scale),
-                scale=self.block.time_scale.upper(),
-                frequency=self.block.frequencies[channel] / 1e6,
-                value=self.plot_data.image[row, channel],
-                unit=self.plot_data.unit,
+        parts = []
+        unit = self.plot_data.unit
+
+        def value_text(value):
+            return f"{value:.5g}" if np.isfinite(value) else self._text("hidden / non-finite")
+
+        if channel is not None:
+            parts.append(
+                self._text(
+                    "Preview channel {channel} · {frequency:.6f} MHz",
+                    channel=channel,
+                    frequency=self.plot_data.frequency_mhz[channel],
+                )
             )
-        )
+        if row is not None:
+            parts.append(
+                self._text(
+                    "MS row {row} · {time} {scale} · +{elapsed:.3f} s",
+                    row=self.block.row_ids[row],
+                    time=_date(self.block.times[row], self.block.time_scale),
+                    scale=self.block.time_scale.upper(),
+                    elapsed=self.plot_data.elapsed_seconds[row],
+                )
+            )
+        if row is not None and channel is not None:
+            parts.append(
+                self._text(
+                    "Sample {quantity}: {value} {unit}",
+                    quantity=self._text(self.plot_data.quantity),
+                    value=value_text(self.plot_data.image[row, channel]),
+                    unit=unit,
+                )
+            )
+            if self.block.flags[row, channel, self.corr_combo.currentData()]:
+                parts.append(self._text("Flagged"))
+        if channel is not None:
+            parts.append(
+                self._text(
+                    "Spectrum mean: {value} {unit}",
+                    value=value_text(self.plot_data.spectrum[channel]),
+                    unit=unit,
+                )
+            )
+        if row is not None:
+            parts.append(
+                self._text(
+                    "Time mean: {value} {unit}",
+                    value=value_text(self.plot_data.time_trace[row]),
+                    unit=unit,
+                )
+            )
+        self.cursor_label.setText("  |  ".join(parts))

@@ -19,7 +19,6 @@ pytest==9.2.0
 pytest-qt==4.5.0
 python-casacore @ file:///Users/runner/miniforge3/conda-bld/python-casacore_1793299067491/work
 PyYAML==6.0.3
-# Editable Git install with no remote (radio-msviewer==0.1.0)
 -e .
 ruff==0.17.4
 setuptools==84.2.1
