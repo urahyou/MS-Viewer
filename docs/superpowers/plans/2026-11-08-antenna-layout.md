@@ -19,8 +19,8 @@
 - [x] TDD metadata/projection: real casacore position/unit/reference tests; independent equator/non-equator ENU direction/distance tests. RED then GREEN.
 - [x] TDD map integration: selected endpoints/line/names, reversal, auto-correlation, equal scale, filtering/language/open-failure/data-replacement and invalid-position behavior. RED then GREEN.
 - [x] Full tests/lint and bounded independent review; fix important findings with regression evidence.
-- [ ] Build/install v0.1.2 preserving old app; native UI QA, signature and installer validation.
-- [ ] Push source and publish versioned DMG/checksum after CI and remote digest verification; retain historical releases.
+- [x] Build/install v0.1.2 preserving old app; native UI QA, signature and installer validation.
+- [x] Push source and publish versioned DMG/checksum after CI and remote digest verification; retain historical releases.
 
 ## Scientific references
 - ESA ECEF→ENU basis: https://gssc.esa.int/navipedia/index.php/Transformations_between_ECEF_and_ENU_coordinates
